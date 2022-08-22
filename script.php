@@ -58,15 +58,11 @@
     function checkFirstArgument($arg) {
         $firstArg = parseFilename($arg);
         if ($firstArg == '--help')
-            die(printColoredText("🔅 You have to use the script the following way:\nphp useless-finder.php [--help | package.json] [...your file | your folder]", "YELLOW"));
+            die(printColoredText("🔅 You have to use the script the following way:\nphp useless-finder.php [--help | package.json] [...your file | your folder] [--flag]\nFLAGS:\n--skip-used: Skip the count of the used dependencies", "YELLOW"));
         else if ($firstArg !== 'package.json')
             die(printColoredText("❌ You need to specify a package.json file as a first argument!", "RED"));
         else if (!file_exists($arg))
             die(printColoredText("❌ The specified package.json does not exists!", "RED"));
-    }
-
-    function checkSkipUsed($arg) {
-        return $arg === '--skip-used';
     }
 
     function parseFile($file, $packages, $occurence) {
@@ -93,7 +89,7 @@
     }
 
     function scanElement($path, $packages, $occurence, &$checkedFiles) {
-        if (is_dir($path)) {
+        if (is_dir($path) && !str_contains($path, 'node_modules')) {
             if (substr($path, -1) !== "\\") $path .= "\\";
             $scan = scandir($path);
             $scan = array_slice($scan, 2);
@@ -134,20 +130,21 @@
             }
         }
         if (!$skip) {
-            foreach ($package as $dependency) {
-                if (array_key_exists($dependency, $occurence) && !in_array($dependency, INGNORED_PACKAGE))
-                    printColoredText("✔️ '$dependency' is used $occurence[$dependency] times!", "GREEN");
+            arsort($occurence);
+            foreach ($occurence as $key => $dependency) {
+                $packageKey = array_search($key, $package);
+                if (in_array($key, $package) && !in_array($dependency, INGNORED_PACKAGE))
+                    printColoredText("✔️ '$package[$packageKey]' is used $dependency times!", "GREEN");
             }
         }
-        if ($neverUsed) {
+        if ($neverUsed)
             printColoredText("⚠️  DISCLAIMER: Some unused dependencies may be necessary for your framework to works properly!!", "YELLOW");
-        }
     }
 
     unset($argv[0]);
     $argv = array_map('trimAndFilter', $argv);
     
-    $skip = checkSkipUsed($argv[$argc - 1]);
+    $skip = $argv[$argc - 1] === '--skip-used';
     if ($skip) array_pop($argv);
     
     checkArgumentsLength($argc, $argv[1]);
